@@ -1,0 +1,19 @@
+{
+    "cats": [
+        "ID:int",
+        "cat_name:str",
+        "Топси:str"
+    ],
+    "orders": [
+        "total:int"
+    ],
+    "топси": [
+        "ID:int",
+        "name:str",
+        "age:int"
+    ],
+    "halls": [
+        "ID:int",
+        "name:str"
+    ]
+}

@@ -1,19 +1,50 @@
+#Этот файл будет отвечать за запуск, игровой цикл и парсинг команд.
 import prompt
+import shlex
 
-def engine():
-    print('''
-project
+from primitive_db.utils import load_metadata, save_metadata
+from primitive_db.core import create_table, drop_table
 
-Первая попытка запустить проект!
+def help():
+    return print_help()
 
-***
-<command> exit - выйти из программы
-<command> help - справочная информация
-Введите команду: help
 
-<command> exit - выйти из программы
-<command> help - справочная информация
- ''')
-    command = prompt.string('Введите команду: _ ')
-    print(command)
+def run():
+    print_help()
+    while True:
+        file_js = load_metadata('db_meta.json')
+        user_input = prompt.string('Введите команду: _ ')
+        args = shlex.split(user_input)
+        command = args[0]
+
+
+        match command:
+            case 'create_table':
+                result = create_table(file_js,  args[1] , args[2:len(args)])
+                save_metadata('db_meta.json', result)
+            case 'drop_table':
+                result  = drop_table(file_js, args[1] )
+                save_metadata('db_meta.json', result)
+            case 'help':
+                print_help()
+            case 'exit':
+                break
+            case 'list_tables':
+                for el in file_js.keys():
+                    print(f'- {el}')
+            case _:
+                print(f'Функции {command} нет. Попробуйте снова.')
+
+def print_help():
+    """Prints the help message for the current mode."""
+
+    print("\n***Процесс работы с таблицей***")
+    print("Функции:")
+    print("<command> create_table <имя_таблицы> <столбец1:тип> .. - создать таблицу")
+    print("<command> list_tables - показать список всех таблиц")
+    print("<command> drop_table <имя_таблицы> - удалить таблицу")
+
+    print("\nОбщие команды:")
+    print("<command> exit - выход из программы")
+    print("<command> help - справочная информация\n")
 
