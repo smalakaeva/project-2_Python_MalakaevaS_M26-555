@@ -1,6 +1,5 @@
 import json
 
-
 filepath = 'db_meta.json'
 def load_metadata(filepath):
     try:

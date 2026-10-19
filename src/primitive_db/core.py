@@ -1,4 +1,3 @@
-from primitive_db.utils import save_metadata, load_metadata
 
 #Здесь будет основная логика работы с таблицами и данными.
 def create_table(metadata, table_name, columns):
@@ -11,10 +10,10 @@ def create_table(metadata, table_name, columns):
     for col in columns:
         parts = col.split(':')
         if  len(parts) != 2:
-            print(f'Ошибка формата. Попробуйте снова.')
+            print('Ошибка формата. Попробуйте снова.')
             return metadata
         if col.split(':')[1] not in types:
-            print(f'Некорректный тип данных. Попробуйте снова.')
+            print('Некорректный тип данных. Попробуйте снова.')
             return metadata
 
     columns = ["ID:int"] + columns

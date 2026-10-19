@@ -15,7 +15,7 @@ exit выйти.
 
 ## Запуск 
 ```
-uv run project 
+uv run database 
 ```
 ## "Управление таблицами"
 ```
