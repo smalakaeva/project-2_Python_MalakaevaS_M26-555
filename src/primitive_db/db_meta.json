@@ -1,19 +1,8 @@
 {
-    "cats": [
-        "ID:int",
-        "cat_name:str",
-        "Топси:str"
-    ],
-    "orders": [
-        "total:int"
-    ],
-    "топси": [
+    "users": [
         "ID:int",
         "name:str",
-        "age:int"
-    ],
-    "halls": [
-        "ID:int",
-        "name:str"
+        "age:int",
+        "is_active:bool"
     ]
 }
