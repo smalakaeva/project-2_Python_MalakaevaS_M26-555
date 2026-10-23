@@ -1,10 +1,20 @@
-# Этот файл будет отвечать за запуск, игровой цикл и парсинг команд.
+"""Главный цикл программы, разбор ввода и вызов команд."""
 import shlex
 
 import prompt
 from prettytable import PrettyTable
 
-from primitive_db.core import create_table, delete, drop_table, insert, select, update
+from primitive_db.constants import ID_NAME, META_FILE
+from primitive_db.core import (
+    create_table,
+    delete,
+    drop_table,
+    insert,
+    matches,
+    select,
+    update,
+)
+from primitive_db.decorators import create_cacher
 from primitive_db.parser import parse_condition, parse_set, parse_values
 from primitive_db.utils import (
     load_metadata,
@@ -13,7 +23,7 @@ from primitive_db.utils import (
     save_table_data,
 )
 
-DB_FILE = 'db_meta.json'
+cache_result = create_cacher()
 
 
 def print_help():
@@ -24,11 +34,15 @@ def print_help():
     print("<command> create_table <имя_таблицы> <столбец1:тип> .. - создать таблицу")
     print("<command> list_tables - показать список всех таблиц")
     print("<command> drop_table <имя_таблицы> - удалить таблицу")
-    print("<command> insert into <имя_таблицы> values (<значение1>, ...) - создать запись")
+    print("<command> insert into <имя_таблицы> values (<значение1>, ...) "
+          "- создать запись")
     print("<command> select from <имя_таблицы> - прочитать все записи")
-    print("<command> select from <имя_таблицы> where <столбец> = <значение> - прочитать записи по условию")
-    print("<command> update <имя_таблицы> set <столбец> = <значение> where <столбец> = <значение> - обновить запись")
-    print("<command> delete from <имя_таблицы> where <столбец> = <значение> - удалить запись")
+    print("<command> select from <имя_таблицы> where <столбец> = <значение> "
+          "- прочитать записи по условию")
+    print("<command> update <имя_таблицы> set <столбец> = <значение> "
+          "where <столбец> = <значение> - обновить запись")
+    print("<command> delete from <имя_таблицы> where <столбец> = <значение> "
+          "- удалить запись")
     print("<command> info <имя_таблицы> - вывести информацию о таблице")
 
     print("\nОбщие команды:")
@@ -37,6 +51,7 @@ def print_help():
 
 
 def print_table(metadata, table_name, rows):
+    """Печатает записи таблицы в виде PrettyTable."""
     names = [column.split(":")[0] for column in metadata[table_name]]
     table = PrettyTable()
     table.field_names = names
@@ -46,10 +61,11 @@ def print_table(metadata, table_name, rows):
 
 
 def run():
+    """Главный цикл: читает команды пользователя и выполняет их."""
     print_help()
 
     while True:
-        metadata = load_metadata(DB_FILE)
+        metadata = load_metadata(META_FILE)
         user_input = prompt.string('>>>Введите команду: ')
         try:
             args = shlex.split(user_input)
@@ -63,14 +79,19 @@ def run():
         match command:
             case 'create_table':
                 if len(args) >= 3:
-                    metadata = create_table(metadata, args[1], args[2:])
-                    save_metadata(DB_FILE, metadata)
+                    result = create_table(metadata, args[1], args[2:])
+                    # при ошибке декоратор вернёт None, его сохранять нельзя
+                    if result is not None:
+                        save_metadata(META_FILE, result)
+                        cache_result.clear()
                 else:
                     print(f'Некорректное значение: {user_input}. Попробуйте снова.')
             case 'drop_table':
                 if len(args) == 2:
-                    metadata = drop_table(metadata, args[1])
-                    save_metadata(DB_FILE, metadata)
+                    result = drop_table(metadata, args[1])
+                    if result is not None:
+                        save_metadata(META_FILE, result)
+                        cache_result.clear()
                 else:
                     print(f'Некорректное значение: {user_input}. Попробуйте снова.')
             case 'help':
@@ -110,8 +131,10 @@ def run():
                     print(f'Некорректное значение: {values_text}. Попробуйте снова.')
                     continue
                 table_data = load_table_data(table_name)
-                table_data = insert(metadata, table_name, values, table_data)
-                save_table_data(table_name, table_data)
+                result = insert(metadata, table_name, values, table_data)
+                if result is not None:
+                    save_table_data(table_name, result)
+                    cache_result.clear()
             case 'select':
                 if len(args) < 3 or args[1] != 'from':
                     print(f'Некорректное значение: {user_input}. Попробуйте снова.')
@@ -129,8 +152,12 @@ def run():
                         print(f'Некорректное значение: {where_text}. Попробуйте снова.')
                         continue
 
-                table_data = load_table_data(table_name)
-                rows = select(table_data, where)
+                # ключ кэша: таблица + условие
+                key = (table_name, str(where))
+                rows = cache_result(
+                    key,
+                    lambda: select(load_table_data(table_name), where),
+                )
                 if not rows:
                     print('Записей нет')
                 else:
@@ -155,13 +182,17 @@ def run():
                     continue
 
                 table_data = load_table_data(table_name)
-                found = select(table_data, where)
+                found = [record for record in table_data if matches(record, where)]
                 if not found:
                     print('Записей по такому условию нет.')
                     continue
-                ids = ", ".join(str(record["ID"]) for record in found)
-                table_data = delete(table_data, where)
-                save_table_data(table_name, table_data)
+                ids = ", ".join(str(record[ID_NAME]) for record in found)
+                new_data = delete(table_data, where)
+                # None - ошибка, та же длина - пользователь ответил "n"
+                if new_data is None or len(new_data) == len(table_data):
+                    continue
+                save_table_data(table_name, new_data)
+                cache_result.clear()
                 print(f'Запись с ID={ids} успешно удалена из таблицы "{table_name}".')
             case 'update':
                 if len(args) < 4 or args[2] != 'set':
@@ -185,16 +216,16 @@ def run():
                     continue
 
                 table_data = load_table_data(table_name)
-                found = select(table_data, where)
+                found = [record for record in table_data if matches(record, where)]
                 if not found:
                     print('Записей по такому условию нет.')
                     continue
-                ids = ", ".join(str(record["ID"]) for record in found)
-                table_data = update(table_data, set_clause, where)
-                save_table_data(table_name, table_data)
-                print(f'Запись с ID={ids} в таблице "{table_name}" успешно обновлена.')
+                ids = ", ".join(str(record[ID_NAME]) for record in found)
+                result = update(table_data, set_clause, where)
+                if result is not None:
+                    save_table_data(table_name, result)
+                    cache_result.clear()
+                    print(f'Запись с ID={ids} в таблице "{table_name}" '
+                          f'успешно обновлена.')
             case _:
                 print(f'Функции {command} нет. Попробуйте снова.')
-
-
-

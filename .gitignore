@@ -2,3 +2,10 @@
 dist/
 __pycache__/
 *.egg-info
+data/
+db_meta.json
+.idea/
+.ruff_cache/
+.DS_Store
+задание
+demo.cast
