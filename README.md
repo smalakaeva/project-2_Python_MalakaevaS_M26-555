@@ -155,11 +155,11 @@ src/primitive_db/
 
 Управление таблицами:
 
-[![asciicast](https://asciinema.org/a/bedPM82CLZjECm9y)
+[![asciicast](https://asciinema.org/a/bedPM82CLZjECm9y.svg)](https://asciinema.org/a/bedPM82CLZjECm9y)
 
 CRUD-операции и подтверждение удаления:
 
-[![asciicast](https://asciinema.org/a/9Qt40vIj4q5hkeQx)
+[![asciicast](https://asciinema.org/a/9Qt40vIj4q5hkeQx.svg)](https://asciinema.org/a/9Qt40vIj4q5hkeQx)
 
 ## Проверка кода
 
